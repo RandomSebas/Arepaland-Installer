@@ -1,53 +1,16 @@
-# Función para comprobar los permisos de administrador y ejecutar de nuevo si es necesario
-function CheckAdminPermissions {
-    param (
-        [Parameter(Mandatory=$true)]
-        [string]$ScriptPath
-    )
+# Define la ruta donde se encuentra el directorio TempFiles
+$directorioTemporal = Join-Path -Path $PSScriptRoot -ChildPath "TempFiles"
 
-    $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-    $isElevated = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-
-    if (-not $isElevated) {
-        Start-Process "powershell.exe" -Verb RunAs -ArgumentList "-File `"$ScriptPath`""
-        exit
-    }
+# Crea el directorio TempFiles si no existe
+if (-not (Test-Path -Path $directorioTemporal)) {
+    New-Item -Path $directorioTemporal -ItemType Directory | Out-Null
 }
 
-# Ruta del script actual
-$scriptPath = $MyInvocation.MyCommand.Path
+# Define la ruta donde se descargará el repositorio
+$rutaRepositorio = Join-Path -Path $directorioTemporal -ChildPath "Arepaland RE"
 
-# Comprobar y solicitar permisos de administrador si es necesario
-CheckAdminPermissions -ScriptPath $scriptPath
+# Clona el repositorio en la ubicación especificada
+git clone https://github.com/RandomSebas/Arepaland-RE $rutaRepositorio
 
-# Ruta del repositorio git
-$gitRepoUrl = "https://github.com/RandomSebas/Arepaland-RE"
-
-# Carpeta donde se instalarán los archivos
-$installFolder = Join-Path -Path (Get-Location) -ChildPath "FilesInstall\ArepalandRE"
-
-# Verificar si la carpeta de instalación existe, si no, crearla
-if (-not (Test-Path -Path $installFolder)) {
-    New-Item -ItemType Directory -Force -Path $installFolder | Out-Null
-}
-
-# Clonar el repositorio git en la carpeta de instalación
-git clone $gitRepoUrl $installFolder
-
-# Verificar si la carpeta ArepalandRE existe en FilesInstall y tiene archivos
-if (Test-Path -Path $installFolder) {
-    $arepalandREFolder = Get-ChildItem -Path $installFolder -Directory | Where-Object { $_.Name -eq "ArepalandRE" }
-    
-    if ($arepalandREFolder -and (Get-ChildItem -Path $arepalandREFolder.FullName)) {
-        # Ruta de la carpeta de destino final
-        $destinationFolder = "$env:APPDATA\.minecraft\modpacks"
-        
-        # Verificar si la carpeta de destino final existe, si no, crearla
-        if (-not (Test-Path -Path $destinationFolder)) {
-            New-Item -ItemType Directory -Force -Path $destinationFolder | Out-Null
-        }
-        
-        # Mover toda la carpeta ArepalandRE a la carpeta de destino final
-        Move-Item -Path $arepalandREFolder.FullName -Destination $destinationFolder -Force -ErrorAction SilentlyContinue
-    }
-}
+# Si quieres eliminar la carpeta .git y mantener solo los archivos
+ Remove-Item -Path (Join-Path -Path $rutaRepositorio -ChildPath ".git") -Recurse -Force
