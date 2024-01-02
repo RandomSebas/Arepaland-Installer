@@ -1,62 +1,33 @@
-# Ruta del directorio donde se encuentra el script
-$scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+# Ruta del directorio del usuario
+$userDirectory = [Environment]::GetFolderPath("UserProfile")
 
-# Rutas y nombres de archivo
-$shortcutName = "ArepalandRE Launcher"
-$shortcutPath = "$env:USERPROFILE\Desktop\$shortcutName.lnk"
-$iconPath = Join-Path -Path $scriptDirectory -ChildPath "IconLauncher\icono.ico"
-$userScriptPath = Join-Path -Path $env:USERPROFILE -ChildPath "ActualizadorGit.ps1"
+# Ruta del archivo que se copiará desde la carpeta del usuario
+$sourceFile = Join-Path -Path $userDirectory -ChildPath "ActualizadorGit.ps1"
 
-# Crear acceso directo en el escritorio
-$WshShell = New-Object -ComObject WScript.Shell
-$Shortcut = $WshShell.CreateShortcut($shortcutPath)
-$Shortcut.TargetPath = 'powershell.exe'
-$Shortcut.Arguments = "-ExecutionPolicy Bypass -File `"$userScriptPath`""
-$Shortcut.IconLocation = $iconPath
-$Shortcut.Save()
-
-# Contenido del script ActualizadorGit.ps1
-@"
-# Carpeta del usuario que corre el script
-\$userFolder = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
-
-# Nueva ruta de la carpeta Arepaland RE dentro de la carpeta del usuario
-\$localFolderPath = Join-Path -Path \$userFolder -ChildPath 'Arepaland RE'
-
-# URL del repositorio
-\$repoURL = 'https://github.com/RandomSebas/Arepaland-RE'
-
-# Verificar cambios en el repositorio
-Set-Location \$localFolderPath
-\$gitStatus = git status
-
-if (\$gitStatus -match 'nothing to commit, working tree clean') {
-    Write-Host 'No hay cambios pendientes en el repositorio.'
-} else {
-    Write-Host 'Se encontraron cambios en el repositorio. Actualizando...'
-    git pull \$repoURL
-    
-    # Comprobar si hay archivos no rastreados en el repositorio local
-    \$untrackedFiles = git ls-files --others --exclude-standard
-    
-    if (\$untrackedFiles) {
-        foreach (\$file in \$untrackedFiles) {
-            Remove-Item \$file -Force
-            Write-Host "Eliminando archivo no rastreado: \$file"
-        }
-    }
-
-    # Actualizar archivos modificados o eliminados
-    git checkout .
-    Write-Host 'Se han aplicado los cambios del repositorio local a la carpeta.'
+# Verificar si el archivo existe en la carpeta del usuario
+if (-not (Test-Path $sourceFile)) {
+    Write-Host "El archivo 'ActualizadorGit.ps1' no existe en la carpeta del usuario." -ForegroundColor Red
+    Exit
 }
 
-# Abre SKlauncher con argumentos específicos
-\$launcherPath = Join-Path -Path \$userFolder -ChildPath 'SKlauncher-3.2.exe'
-if (Test-Path \$launcherPath) {
-    \$skLauncherArgs = "--workDir 'C:\Users\\\$($env:USERNAME)\Arepaland RE'"  # Argumentos para SKlauncher
-    Start-Process \$launcherPath -ArgumentList \$skLauncherArgs
-} else {
-    Write-Host 'No se pudo encontrar el archivo \$launcherPath.'
-}
-"@ | Set-Content -Path $userScriptPath -Encoding UTF8
+# Ruta del icono
+$iconPath = Join-Path -Path $scriptDirectory -ChildPath "IconLauncher\icono.ico"  # Ajusta esta ruta según la ubicación correcta del icono
+
+# Ruta donde se creará el acceso directo en el escritorio
+$shortcutLocation = [System.IO.Path]::Combine([Environment]::GetFolderPath('Desktop'), "Arepaland RE Launcher.lnk")
+
+# Crear el objeto para el acceso directo
+$shell = New-Object -ComObject WScript.Shell
+$shortcut = $shell.CreateShortcut($shortcutLocation)
+
+# Establecer la ruta del archivo de destino para el acceso directo
+$shortcut.TargetPath = "powershell.exe"
+
+# Establecer el argumento para ejecutar el script
+$shortcut.Arguments = "-File `"$sourceFile`""
+
+# Establecer la ruta del icono para el acceso directo
+$shortcut.IconLocation = $iconPath
+
+# Guardar el acceso directo
+$shortcut.Save()
